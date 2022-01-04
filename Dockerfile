@@ -77,4 +77,6 @@ ARG HTTP_ROOT=/code/apps/wildalaskancompany.com/public
 
 RUN sed -i "s|{{HTTP_ROOT}}|${HTTP_ROOT}|g" /etc/nginx/sites-enabled/default
 
+RUN docker-php-ext-enable xdebug
+
 ENTRYPOINT ["/bin/bash", "-c", "/start.sh"]
