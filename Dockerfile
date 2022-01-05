@@ -42,6 +42,8 @@ RUN apt-get install -y zlib1g-dev libicu-dev g++ unzip && \
 RUN docker-php-ext-configure intl && \
     docker-php-ext-install intl
 
+RUN docker-php-ext-install bcmath
+
 RUN apt install -y chromium
 COPY docker/supervisord.conf /etc/supervisord.conf
 COPY docker/default.conf /etc/nginx/sites-enabled/default
