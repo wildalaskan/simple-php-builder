@@ -1,44 +1,27 @@
-FROM php:8.1-fpm
+FROM php:8.1-fpm-alpine
 
-ARG NODE_VERSION=12
-
-RUN apt-get update && apt-get install -y \
-        apt-utils \
-        fonts-liberation \
+RUN apk add --update \
+        bash \
         g++ \
-        gconf-service \
         git \
         gnupg \
-        libasound2 \
-        libatk1.0-0 \
-        libcairo2 \
-        libcups2 \
-        libfontconfig1 \
-        libfreetype6-dev \
-        libgdk-pixbuf2.0-0 \
-        libgtk-3-0 \
-        libicu-dev \
-        libjpeg62-turbo-dev \
+        icu-dev \
         libmcrypt-dev \
-        libnspr4 \
-        libnss3 \
-        libpango-1.0-0 \
         libpng-dev \
-        libsqlite3-dev \
         libxml2-dev \
-        libxss1 \
         libzip-dev \
-        lsb-release \
         nginx \
         procps \
+        sqlite-dev \
         supervisor \
         unzip \
         wget \
         xdg-utils \
-        zlib1g-dev \
-        zlib1g-dev \
+    && docker-php-ext-configure intl \
     && docker-php-ext-install \
+        bcmath \
         gd \
+        intl \
         mysqli \
         opcache \
         pcntl \
@@ -52,19 +35,20 @@ RUN apt-get update && apt-get install -y \
     && php composer-setup.php --install-dir=/usr/bin --filename=composer \
     && php -r "unlink('composer-setup.php');"
 
-RUN curl -sL https://deb.nodesource.com/setup_$NODE_VERSION.x | bash - \
-    && apt-get install -y nodejs \
-    && npm install -g npm
+RUN apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
+    && pecl install xdebug \
+    && docker-php-ext-enable xdebug \
+    && apk del -f .build-deps
 
-RUN adduser --system --no-create-home --shell /bin/false --group --disabled-login nginx
+RUN echo "xdebug.start_with_request=yes" >> /usr/local/etc/php/conf.d/xdebug.ini \
+    && echo "xdebug.mode=debug" >> /usr/local/etc/php/conf.d/xdebug.ini \
+    && echo "xdebug.log=/var/www/html/xdebug/xdebug.log" >> /usr/local/etc/php/conf.d/xdebug.ini \
+    && echo "xdebug.discover_client_host=1" >> /usr/local/etc/php/conf.d/xdebug.ini \
+    && echo "xdebug.client_port=9000" >> /usr/local/etc/php/conf.d/xdebug.ini
 
-RUN pecl install xdebug
+RUN apk add  --no-cache --repository http://dl-cdn.alpinelinux.org/alpine/v3.12/main/ nodejs=12.22.6-r0 npm
 
-RUN docker-php-ext-configure intl && \
-    docker-php-ext-install intl && \
-    docker-php-ext-enable xdebug
-
-RUN apt install -y chromium
+RUN apk add chromium
 COPY docker/supervisord.conf /etc/supervisord.conf
 COPY docker/default.conf /etc/nginx/sites-enabled/default
 COPY docker/www.conf /usr/local/etc/php-fpm.d/www.conf
