@@ -1,9 +1,8 @@
 FROM php:8.1-fpm
 
-ARG NODE_VERSION=12
-
 RUN apt-get update && apt-get install -y \
         apt-utils \
+        chromium \
         fonts-liberation \
         g++ \
         gconf-service \
@@ -25,8 +24,8 @@ RUN apt-get update && apt-get install -y \
         libpango-1.0-0 \
         libpng-dev \
         libsqlite3-dev \
-        libxml2-dev \
         libxss1 \
+        libxml2-dev \
         libzip-dev \
         lsb-release \
         nginx \
@@ -36,37 +35,35 @@ RUN apt-get update && apt-get install -y \
         wget \
         xdg-utils \
         zlib1g-dev \
-        zlib1g-dev \
-    && docker-php-ext-install \
+        zlib1g-dev
+
+RUN docker-php-ext-configure intl && \
+    docker-php-ext-install  \
+        bcmath \
         gd \
+        intl \
         mysqli \
         opcache \
         pcntl \
         pdo_mysql \
-        pdo_sqlite \
         soap \
-        zip \
-    && EXPECTED_COMPOSER_SIGNATURE=$(wget -q -O - https://composer.github.io/installer.sig) \
+        zip
+
+RUN EXPECTED_COMPOSER_SIGNATURE=$(wget -q -O - https://composer.github.io/installer.sig) \
     && php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
     && php -r "if (hash_file('SHA384', 'composer-setup.php') === '${EXPECTED_COMPOSER_SIGNATURE}') { echo 'Composer.phar Installer verified'; } else { echo 'Composer.phar Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;" \
     && php composer-setup.php --install-dir=/usr/bin --filename=composer \
     && php -r "unlink('composer-setup.php');"
 
-RUN curl -sL https://deb.nodesource.com/setup_$NODE_VERSION.x | bash - \
-    && apt-get install -y nodejs \
-    && npm install -g npm
+RUN curl -sL https://deb.nodesource.com/setup_12.x -o /nodesource_setup.sh && \
+    chmod a+x /nodesource_setup.sh && \
+    /nodesource_setup.sh && \
+    apt-get install -y nodejs
 
 RUN adduser --system --no-create-home --shell /bin/false --group --disabled-login nginx
 
 RUN pecl install xdebug
 
-RUN docker-php-ext-configure intl && \
-    docker-php-ext-install intl && \
-    docker-php-ext-enable xdebug
-
-RUN docker-php-ext-install bcmath
-
-RUN apt install -y chromium
 COPY docker/supervisord.conf /etc/supervisord.conf
 COPY docker/default.conf /etc/nginx/sites-enabled/default
 COPY docker/www.conf /usr/local/etc/php-fpm.d/www.conf
