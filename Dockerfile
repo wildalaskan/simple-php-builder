@@ -46,7 +46,7 @@ RUN echo "xdebug.start_with_request=yes" >> /usr/local/etc/php/conf.d/xdebug.ini
     && echo "xdebug.discover_client_host=1" >> /usr/local/etc/php/conf.d/xdebug.ini \
     && echo "xdebug.client_port=9000" >> /usr/local/etc/php/conf.d/xdebug.ini
 
-RUN apk add  --no-cache --repository http://dl-cdn.alpinelinux.org/alpine/v3.12/main/ nodejs=12.22.6-r0 npm
+RUN apk add --no-cache --repository http://dl-cdn.alpinelinux.org/alpine/v3.12/main/ nodejs=12.22.6-r0 npm
 
 RUN apk add chromium
 COPY docker/supervisord.conf /etc/supervisord.conf
