@@ -48,7 +48,8 @@ RUN echo "xdebug.start_with_request=yes" >> /usr/local/etc/php/conf.d/xdebug.ini
 
 RUN apk add --no-cache --repository http://dl-cdn.alpinelinux.org/alpine/v3.12/main/ nodejs=12.22.6-r0 npm
 
-RUN apk add chromium
+RUN apk add chromium chromium-chromedriver
+
 COPY docker/supervisord.conf /etc/supervisord.conf
 COPY docker/default.conf /etc/nginx/sites-enabled/default
 COPY docker/www.conf /usr/local/etc/php-fpm.d/www.conf
