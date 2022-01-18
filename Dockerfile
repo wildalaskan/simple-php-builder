@@ -40,12 +40,6 @@ RUN apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
     && docker-php-ext-enable xdebug \
     && apk del -f .build-deps
 
-RUN echo "xdebug.start_with_request=yes" >> /usr/local/etc/php/conf.d/xdebug.ini \
-    && echo "xdebug.mode=debug" >> /usr/local/etc/php/conf.d/xdebug.ini \
-    && echo "xdebug.log=/var/www/html/xdebug/xdebug.log" >> /usr/local/etc/php/conf.d/xdebug.ini \
-    && echo "xdebug.discover_client_host=1" >> /usr/local/etc/php/conf.d/xdebug.ini \
-    && echo "xdebug.client_port=9000" >> /usr/local/etc/php/conf.d/xdebug.ini
-
 RUN apk add --no-cache --repository http://dl-cdn.alpinelinux.org/alpine/v3.12/main/ nodejs=12.22.6-r0 npm
 
 RUN apk add chromium chromium-chromedriver
@@ -55,7 +49,7 @@ COPY docker/default.conf /etc/nginx/sites-enabled/default
 COPY docker/www.conf /usr/local/etc/php-fpm.d/www.conf
 COPY --chmod=111 docker/start.sh /start.sh
 
-EXPOSE 443 80 9000
+EXPOSE 443 80 9001
 WORKDIR /code
 
 ENV PATH=$PATH:/code/vendor/bin
