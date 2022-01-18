@@ -69,7 +69,7 @@ COPY docker/default.conf /etc/nginx/sites-enabled/default
 COPY docker/www.conf /usr/local/etc/php-fpm.d/www.conf
 COPY --chmod=111 docker/start.sh /start.sh
 
-EXPOSE 443 80 9000
+EXPOSE 443 80
 WORKDIR /code
 
 ENV PATH=$PATH:/code/vendor/bin
