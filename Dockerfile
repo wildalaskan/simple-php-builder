@@ -40,6 +40,9 @@ RUN apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
     && docker-php-ext-enable xdebug \
     && apk del -f .build-deps
 
+RUN touch /tmp/xdebug.log \
+       && chown www-data:www-data /tmp/xdebug.log
+
 RUN apk add --no-cache --repository http://dl-cdn.alpinelinux.org/alpine/v3.12/main/ nodejs=12.22.6-r0 npm
 
 RUN apk add chromium chromium-chromedriver
