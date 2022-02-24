@@ -39,7 +39,7 @@ EXPOSE 443 80 9001
 WORKDIR /code
 
 ENV PATH=$PATH:/code/vendor/bin
-ARG HTTP_ROOT=/code/apps/wildalaskancompany.com/public
+ARG HTTP_ROOT=/code/public
 
 RUN sed -i "s|{{HTTP_ROOT}}|${HTTP_ROOT}|g" /etc/nginx/http.d/default.conf
 
@@ -50,8 +50,6 @@ ENV NGINX_START=true \
     HORIZON_START=false
 
 FROM hosting as builder
-
-RUN apk add --no-cache --repository http://dl-cdn.alpinelinux.org/alpine/v3.12/main/ nodejs=12.22.6-r0 npm
 
 RUN apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
     && pecl install xdebug \
@@ -64,5 +62,3 @@ RUN touch /tmp/xdebug.log \
 COPY --chmod=111 docker/install-composer.sh /usr/bin/install-composer
 RUN install-composer \
     && rm /usr/bin/install-composer
-
-#RUN apk add chromium chromium-chromedriver
