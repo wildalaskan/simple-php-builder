@@ -1,0 +1,96 @@
+name: Build and Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      dockerTag:
+        description: 'Docker image dev tag instead of branch name'
+        required: false
+        type: string
+  push:
+    branches:
+      - master
+    tags:
+      - '*.*.*'
+
+env:
+  AWS_REGION: us-east-1
+  DOCKER_BUILDKIT: 1
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v2
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      -
+        name: Set if Dev build
+        if: ${{ github.ref_name != 'master' && !startsWith(github.ref, 'refs/tags/') }}
+        run: echo "DEV_BRANCH=true" > $GITHUB_ENV
+      -
+        name: Generate tag name
+        id: tag-generate
+        env:
+          INPUT_TAG: ${{ github.event.inputs.dockerTag }}
+        run: |
+          TAG="${INPUT_TAG:-$GITHUB_REF_NAME}"
+          TAG="${TAG/\//-}"
+          if [[ "${DEV_BRANCH}" == "true" ]]; then TAG="dev-${TAG}"; fi
+          echo "::set-output name=tag::${TAG,,}"
+      -
+        name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        if: ${{ github.ref_name == 'master' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      -
+        name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+        if: ${{ github.ref_name == 'master' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+      -
+        name: Login to Docker Hub
+        uses: docker/login-action@v1
+        if: ${{ github.ref_name == 'master' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      -
+        name: Nginx build and push
+        uses: docker/build-push-action@v2
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        with:
+          context: .
+          # arm64 builds were taking ~45 minutes to run on GitHub cloud. Only building amd64 for now.
+          # platforms: linux/amd64,linux/arm64
+          push: ${{ github.ref_name == 'master' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+          target: hosting
+          tags: |
+            wildalaskan/php-fpm-nginx:${{ steps.tag-generate.outputs.tag }}
+            ${{ env.ECR_REGISTRY}}/php-fpm-nginx:${{ steps.tag-generate.outputs.tag }}
+      -
+        name: Builder build and push
+        uses: docker/build-push-action@v2
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        with:
+          context: .
+          # arm64 builds were taking ~45 minutes to run on GitHub cloud. Only building amd64 for now.
+          # platforms: linux/amd64,linux/arm64
+          push: ${{ github.ref_name == 'master' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+          target: builder
+          tags: |
+            wildalaskan/simple-php-builder:${{ steps.tag-generate.outputs.tag }}
+            ${{ env.ECR_REGISTRY}}/simple-php-builder:${{ steps.tag-generate.outputs.tag }}

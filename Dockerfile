@@ -1,44 +1,25 @@
-FROM php:8.1-fpm
+FROM php:8.1-fpm-alpine as hosting
 
-RUN apt-get update && apt-get install -y \
-        apt-utils \
-        chromium \
-        fonts-liberation \
+RUN apk add --update \
+        bash \
         g++ \
-        gconf-service \
         git \
         gnupg \
-        libasound2 \
-        libatk1.0-0 \
-        libcairo2 \
-        libcups2 \
-        libfontconfig1 \
-        libfreetype6-dev \
-        libgdk-pixbuf2.0-0 \
-        libgtk-3-0 \
-        libicu-dev \
-        libjpeg62-turbo-dev \
+        icu-dev \
         libmcrypt-dev \
-        libnspr4 \
-        libnss3 \
-        libpango-1.0-0 \
         libpng-dev \
-        libsqlite3-dev \
-        libxss1 \
         libxml2-dev \
         libzip-dev \
-        lsb-release \
+        make \
         nginx \
         procps \
+        sqlite-dev \
         supervisor \
         unzip \
         wget \
         xdg-utils \
-        zlib1g-dev \
-        zlib1g-dev
-
-RUN docker-php-ext-configure intl && \
-    docker-php-ext-install  \
+    && docker-php-ext-configure intl \
+    && docker-php-ext-install \
         bcmath \
         gd \
         intl \
@@ -46,37 +27,38 @@ RUN docker-php-ext-configure intl && \
         opcache \
         pcntl \
         pdo_mysql \
-        soap \
+        pdo_sqlite \
         zip
 
-RUN EXPECTED_COMPOSER_SIGNATURE=$(wget -q -O - https://composer.github.io/installer.sig) \
-    && php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
-    && php -r "if (hash_file('SHA384', 'composer-setup.php') === '${EXPECTED_COMPOSER_SIGNATURE}') { echo 'Composer.phar Installer verified'; } else { echo 'Composer.phar Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;" \
-    && php composer-setup.php --install-dir=/usr/bin --filename=composer \
-    && php -r "unlink('composer-setup.php');"
-
-RUN curl -sL https://deb.nodesource.com/setup_12.x -o /nodesource_setup.sh && \
-    chmod a+x /nodesource_setup.sh && \
-    /nodesource_setup.sh && \
-    apt-get install -y nodejs
-
-RUN adduser --system --no-create-home --shell /bin/false --group --disabled-login nginx
-
-RUN pecl install xdebug
-
 COPY docker/supervisord.conf /etc/supervisord.conf
-COPY docker/default.conf /etc/nginx/sites-enabled/default
+COPY docker/default.conf /etc/nginx/http.d/default.conf
 COPY docker/www.conf /usr/local/etc/php-fpm.d/www.conf
 COPY --chmod=111 docker/start.sh /start.sh
 
-EXPOSE 443 80
+EXPOSE 443 80 9001
 WORKDIR /code
 
 ENV PATH=$PATH:/code/vendor/bin
-ARG HTTP_ROOT=/code/apps/wildalaskancompany.com/public
+ARG HTTP_ROOT=/code/public
 
-RUN sed -i "s|{{HTTP_ROOT}}|${HTTP_ROOT}|g" /etc/nginx/sites-enabled/default
-
-RUN docker-php-ext-enable xdebug
+RUN sed -i "s|{{HTTP_ROOT}}|${HTTP_ROOT}|g" /etc/nginx/http.d/default.conf
 
 ENTRYPOINT ["/bin/bash", "-c", "/start.sh"]
+
+ENV NGINX_START=true \
+    PHP_FPM_START=true \
+    HORIZON_START=false
+
+FROM hosting as builder
+
+RUN apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
+    && pecl install xdebug \
+    && docker-php-ext-enable xdebug \
+    && apk del -f .build-deps
+
+RUN touch /tmp/xdebug.log \
+       && chown www-data:www-data /tmp/xdebug.log
+
+COPY --chmod=111 docker/install-composer.sh /usr/bin/install-composer
+RUN install-composer \
+    && rm /usr/bin/install-composer
