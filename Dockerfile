@@ -1,3 +1,7 @@
+FROM spiralscout/roadrunner as roadrunner
+
+FROM node:12-alpine as node
+
 FROM php:8.1-fpm-alpine as hosting
 
 RUN apk add --update \
@@ -28,7 +32,18 @@ RUN apk add --update \
         pcntl \
         pdo_mysql \
         pdo_sqlite \
-        zip
+        sockets \
+        zip \
+    && mkdir /var/run/rr \
+    && chmod -R 777 /var/run/rr
+
+COPY --from=node /usr/lib /usr/lib
+COPY --from=node /usr/local/share /usr/local/share
+COPY --from=node /usr/local/lib /usr/local/lib
+COPY --from=node /usr/local/include /usr/local/include
+COPY --from=node /usr/local/bin /usr/local/bin
+
+COPY --from=roadrunner /usr/bin/rr /usr/bin/rr
 
 COPY docker/supervisord.conf /etc/supervisord.conf
 COPY docker/default.conf /etc/nginx/http.d/default.conf
