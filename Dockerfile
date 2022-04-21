@@ -1,6 +1,6 @@
 FROM spiralscout/roadrunner as roadrunner
 
-FROM node:12-alpine as node
+FROM node:16-alpine as node
 
 FROM php:8.1-fpm-alpine as hosting-deps
 
