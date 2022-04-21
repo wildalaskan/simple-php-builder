@@ -78,8 +78,8 @@ jobs:
           push: ${{ github.ref_name == 'master' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
           target: hosting
           tags: |
-            wildalaskan/php-fpm-nginx:${{ steps.tag-generate.outputs.tag }}
-            ${{ env.ECR_REGISTRY}}/php-fpm-nginx:${{ steps.tag-generate.outputs.tag }}
+            wildalaskan/php:${{ steps.tag-generate.outputs.tag }}
+            ${{ env.ECR_REGISTRY}}/php:${{ steps.tag-generate.outputs.tag }}
       -
         name: Builder build and push
         uses: docker/build-push-action@v2

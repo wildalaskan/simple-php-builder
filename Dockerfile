@@ -1,4 +1,10 @@
-FROM php:8.1-fpm-alpine as hosting
+FROM spiralscout/roadrunner as roadrunner
+
+FROM node:12-alpine as node
+
+FROM php:8.1-fpm-alpine as hosting-deps
+
+COPY --from=roadrunner /usr/bin/rr /usr/bin/rr
 
 RUN apk add --update \
         bash \
@@ -28,28 +34,30 @@ RUN apk add --update \
         pcntl \
         pdo_mysql \
         pdo_sqlite \
-        zip
+        sockets \
+        zip \
+    && mkdir /var/run/rr \
+    && chmod -R 777 /var/run/rr
 
-COPY docker/supervisord.conf /etc/supervisord.conf
-COPY docker/default.conf /etc/nginx/http.d/default.conf
-COPY docker/www.conf /usr/local/etc/php-fpm.d/www.conf
-COPY --chmod=111 docker/start.sh /start.sh
-
-EXPOSE 443 80 9001
 WORKDIR /code
 
-ENV PATH=$PATH:/code/vendor/bin
-ARG HTTP_ROOT=/code/public
-
-RUN sed -i "s|{{HTTP_ROOT}}|${HTTP_ROOT}|g" /etc/nginx/http.d/default.conf
-
-ENTRYPOINT ["/bin/bash", "-c", "/start.sh"]
-
-ENV NGINX_START=true \
+ENV PATH=$PATH:/code/vendor/bin \
+    NGINX_START=true \
     PHP_FPM_START=true \
-    HORIZON_START=false
+    HORIZON_START=false \
+    OCTANE_START=false
 
-FROM hosting as builder
+EXPOSE 443 80 9001
+CMD []
+ENTRYPOINT ["/entrypoint.sh"]
+
+FROM hosting-deps as builder-deps
+
+COPY --from=node /usr/lib /usr/lib
+COPY --from=node /usr/local/share /usr/local/share
+COPY --from=node /usr/local/lib /usr/local/lib
+COPY --from=node /usr/local/include /usr/local/include
+COPY --from=node /usr/local/bin /usr/local/bin
 
 RUN apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
     && pecl install xdebug \
@@ -62,3 +70,21 @@ RUN touch /tmp/xdebug.log \
 COPY --chmod=111 docker/install-composer.sh /usr/bin/install-composer
 RUN install-composer \
     && rm /usr/bin/install-composer
+
+FROM hosting-deps as hosting
+
+ARG HTTP_ROOT=/code/public
+
+COPY docker/supervisord.conf /etc/supervisord.conf
+COPY docker/default.conf /etc/nginx/http.d/default.conf
+COPY docker/www.conf /usr/local/etc/php-fpm.d/www.conf
+COPY --chmod=111 docker/entrypoint.sh /entrypoint.sh
+
+RUN sed -i "s|{{HTTP_ROOT}}|${HTTP_ROOT}|g" /etc/nginx/http.d/default.conf
+
+FROM builder-deps as builder
+
+COPY --from=hosting /etc/supervisord.conf /etc/supervisord.conf
+COPY --from=hosting /etc/nginx/http.d/default.conf /etc/nginx/http.d/default.conf
+COPY --from=hosting /usr/local/etc/php-fpm.d/www.conf /usr/local/etc/php-fpm.d/www.conf
+COPY --from=hosting /entrypoint.sh /entrypoint.sh
