@@ -1,7 +1,6 @@
 FROM spiralscout/roadrunner as roadrunner
-
 FROM node:16-alpine as node
-
+FROM apiaryio/drafter as drafter
 FROM php:8.1-fpm-alpine as hosting-deps
 
 COPY --from=roadrunner /usr/bin/rr /usr/bin/rr
@@ -88,3 +87,5 @@ COPY --from=hosting /etc/supervisord.conf /etc/supervisord.conf
 COPY --from=hosting /etc/nginx/http.d/default.conf /etc/nginx/http.d/default.conf
 COPY --from=hosting /usr/local/etc/php-fpm.d/www.conf /usr/local/etc/php-fpm.d/www.conf
 COPY --from=hosting /entrypoint.sh /entrypoint.sh
+
+COPY --from=drafter /usr/local/bin/drafter /usr/local/bin/drafter
