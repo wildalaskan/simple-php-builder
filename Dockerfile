@@ -71,6 +71,9 @@ COPY --chmod=111 docker/install-composer.sh /usr/bin/install-composer
 RUN install-composer \
     && rm /usr/bin/install-composer
 
+RUN npm install -g @stoplight/spectral-cli
+RUN composer global require squizlabs/php_codesniffer=\*
+
 FROM hosting-deps as hosting
 
 ARG HTTP_ROOT=/code/public
